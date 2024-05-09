@@ -1,0 +1,43 @@
+# Description: Dockerfile for production environment
+
+# ----------------------
+# Dependencies 
+# ----------------------
+FROM node:alpine as deps
+
+WORKDIR /usr/src/app
+
+COPY package.json ./
+
+RUN yarn --frozen-lockfile 
+
+# ----------------------
+# 🏡 Build
+# ----------------------
+FROM node:alpine as build
+
+WORKDIR /usr/src/app
+
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+COPY . .
+
+RUN yarn run build
+RUN yarn cache clean
+
+# ----------------------
+# 🚀 Production Server
+# ----------------------
+FROM node:alpine as prod
+
+WORKDIR /usr/src/app
+
+COPY --from=build /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/dist ./dist
+
+ENV NODE_ENV production
+
+USER node
+
+EXPOSE 3000
+
+CMD [ "node", "dist/main.js" ]
